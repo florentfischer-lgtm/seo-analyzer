@@ -260,7 +260,7 @@
 
             return (
                 <div className="min-h-screen p-6">
-                   {/* Header Textuel - Version Finale & Stable */}
+                {/* Header Textuel - Version Finale & Stable */}
                     <header className="mb-10">
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                             
@@ -457,6 +457,8 @@
         }
 
         function KeywordCard({ keyword, onClick, onDragStart, onDragEnd }) {
+            const hasData = keyword.clics_16m > 0 || keyword.impressions_16m > 0;
+            
             return (
                 <div 
                     draggable
@@ -470,24 +472,53 @@
                     <div className="space-y-2 text-sm text-gray-300">
                         <div className="flex justify-between">
                             <span className="flex items-center gap-1">👆 Clics:</span>
-                            <span className="font-medium text-cyan-400">{keyword.clics_16m || 0}</span>
+                            <span className={`font-medium ${hasData ? 'text-cyan-400' : 'text-gray-500'}`}>
+                                {keyword.clics_16m > 0 ? keyword.clics_16m : '—'}
+                            </span>
                         </div>
                         <div className="flex justify-between">
                             <span className="flex items-center gap-1">👁️ Impressions:</span>
-                            <span className="font-medium text-cyan-400">{keyword.impressions_16m || 0}</span>
+                            <span className={`font-medium ${hasData ? 'text-cyan-400' : 'text-gray-500'}`}>
+                                {keyword.impressions_16m > 0 ? keyword.impressions_16m : '—'}
+                            </span>
                         </div>
                         <div className="flex justify-between">
                             <span className="flex items-center gap-1">📍 Position:</span>
-                            <span className="font-medium text-cyan-400">{keyword.position_actuelle || 'N/A'}</span>
+                            <span className="font-medium text-cyan-400">{keyword.position_actuelle || '—'}</span>
                         </div>
                     </div>
+                    {!hasData && (
+                        <div className="mt-2 text-xs text-gray-500 italic">Pas de données GSC</div>
+                    )}
                 </div>
             );
         }
 
         function DetailModal({ keyword, onClose }) {
-            let top10 = [];
-            try { top10 = keyword.top10_serp ? JSON.parse(keyword.top10_serp) : []; } catch(e) { top10 = []; }
+            // Parser le TOP 10 SERP au format texte
+            const parseTop10 = (text) => {
+                if (!text || text.trim() === '' || text === '[]') return [];
+                
+                // Format: "#1 domain.com - Title"
+                const lines = text.split('\n').filter(line => line.trim());
+                const results = [];
+                
+                for (let line of lines) {
+                    const match = line.match(/^#(\d+)\s+([^\s]+)\s+-\s+(.+)$/);
+                    if (match) {
+                        const [, position, domain, title] = match;
+                        results.push({
+                            position: parseInt(position),
+                            url: domain.startsWith('http') ? domain : `https://${domain}`,
+                            title: title.trim()
+                        });
+                    }
+                }
+                
+                return results;
+            };
+
+            const top10 = parseTop10(keyword.top10_serp || '');
 
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop" onClick={onClose}>
@@ -512,15 +543,20 @@
                                     <span>📊</span> Performances actuelles
                                 </h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <MetricCard icon="👆" label="Clics (16m)" value={keyword.clics_16m} />
-                                    <MetricCard icon="👁️" label="Impressions (16m)" value={keyword.impressions_16m} />
-                                    <MetricCard icon="📍" label="Position" value={keyword.position_actuelle} />
-                                    <MetricCard icon="📈" label="Évolution" value={keyword.delta_positions} />
-                                    <MetricCard icon="🎯" label="CTR" value={keyword.ctr} />
-                                    <MetricCard icon="📊" label="Volume" value={keyword.volume} />
-                                    <MetricCard icon="💰" label="Indice Business" value={keyword.indice_business} />
-                                    <MetricCard icon="🔄" label="Dernière MAJ" value={keyword.derniere_maj || 'N/A'} small />
+                                    <MetricCard icon="👆" label="Clics (16m)" value={keyword.clics_16m || '—'} empty={!keyword.clics_16m} />
+                                    <MetricCard icon="👁️" label="Impressions (16m)" value={keyword.impressions_16m || '—'} empty={!keyword.impressions_16m} />
+                                    <MetricCard icon="📍" label="Position" value={keyword.position_actuelle || '—'} />
+                                    <MetricCard icon="📈" label="Évolution" value={keyword.delta_positions || '—'} empty={!keyword.delta_positions} />
+                                    <MetricCard icon="🎯" label="CTR" value={keyword.ctr || '—'} empty={!keyword.ctr} />
+                                    <MetricCard icon="📊" label="Volume" value={keyword.volume || '—'} empty={!keyword.volume} />
+                                    <MetricCard icon="💰" label="Indice Business" value={keyword.indice_business || '—'} empty={!keyword.indice_business} />
+                                    <MetricCard icon="🔄" label="Dernière MAJ" value={keyword.derniere_maj || '—'} small empty={!keyword.derniere_maj} />
                                 </div>
+                                {(!keyword.clics_16m && !keyword.impressions_16m) && (
+                                    <div className="mt-4 bg-gray-600 rounded-lg p-3 text-sm text-gray-300">
+                                        ℹ️ Les données Google Search Console ne sont pas encore disponibles pour ce mot-clé
+                                    </div>
+                                )}
                             </div>
 
                             {/* Section 2 : Analyse concurrentielle */}
@@ -608,11 +644,18 @@
                                     </h3>
                                     <div className="space-y-2">
                                         {top10.map((item, i) => (
-                                            <div key={i} className="flex gap-3 items-center bg-gray-600 p-3 rounded-lg hover:bg-gray-500 transition">
-                                                <span className="font-bold text-cyan-400 text-lg min-w-[40px]">#{i + 1}</span>
-                                                <a href={item.url} target="_blank" className="text-gray-200 hover:text-white truncate flex-1 text-sm">
-                                                    {item.title || item.url}
-                                                </a>
+                                            <div key={i} className="flex gap-3 items-start bg-gray-600 p-3 rounded-lg hover:bg-gray-500 transition">
+                                                <span className="font-bold text-cyan-400 text-lg min-w-[40px] flex-shrink-0">
+                                                    #{item.position || i + 1}
+                                                </span>
+                                                <div className="flex-1 min-w-0">
+                                                    <a href={item.url} target="_blank" className="text-cyan-300 hover:text-cyan-100 text-xs block mb-1 break-all">
+                                                        {item.url}
+                                                    </a>
+                                                    {item.title && (
+                                                        <p className="text-gray-200 text-sm leading-snug">{item.title}</p>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -624,12 +667,14 @@
             );
         }
 
-        function MetricCard({ icon, label, value, small }) {
+        function MetricCard({ icon, label, value, small, empty }) {
             return (
                 <div className="bg-gray-600 rounded-lg p-4">
                     <div className="text-2xl mb-2">{icon}</div>
                     <div className={`${small ? 'text-xs' : 'text-xs'} text-gray-300 mb-1`}>{label}</div>
-                    <div className={`${small ? 'text-sm' : 'text-xl'} font-bold text-white`}>{value || 'N/A'}</div>
+                    <div className={`${small ? 'text-sm' : 'text-xl'} font-bold ${empty ? 'text-gray-400' : 'text-white'}`}>
+                        {value || '—'}
+                    </div>
                 </div>
             );
         }
