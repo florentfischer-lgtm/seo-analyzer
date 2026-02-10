@@ -140,55 +140,44 @@
 
             return (
                 <div className="min-h-screen p-6">
-                   {/* Header Modifié - Version Finale */}
-                    <header className="mb-10">
-                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                            
-                            {/* Partie Gauche : Titre + Logo alignés verticalement */}
-                            <div className="flex flex-col items-start gap-1">
-                                <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
-                                    Content Factory
-                                </h1>
-                                
-                                <div className="flex items-center gap-3 mt-1">
-                                    <span className="text-gray-400 text-sm font-medium italic">by</span>
-                                    
-                                    {/* Logo SVG intégré (ne cassera jamais) */}
-                                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-1.5 rounded-lg h-9 flex items-center hover:bg-white/20 transition-colors cursor-default">
-                                        <svg viewBox="0 0 200 40" className="h-full w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            {/* Icône simplifiée style LEC */}
-                                            <path d="M5 20L15 30L35 10" stroke="#73EDE0" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-                                            <text x="45" y="28" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="24" fill="white">
-                                                L-Expert-Comptable<tspan fill="#73EDE0">.com</tspan>
-                                            </text>
-                                        </svg>
-                                    </div>
-                                </div>
-                            </div>
+                   <header className="mb-10">
+    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        
+        {/* Partie Gauche : Titre Texte uniquement */}
+        <div className="flex flex-col items-start">
+            <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
+                Content Factory
+            </h1>
+            
+            {/* Ligne "by L-Expert-Comptable.com" en texte */}
+            <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-gray-400 text-lg font-medium italic">by</span>
+                <span className="text-white text-2xl md:text-3xl font-bold tracking-tight">
+                    L-Expert-Comptable<span className="text-[#73EDE0]">.com</span>
+                </span>
+            </div>
+        </div>
 
-                            {/* Partie Droite : Boutons (inchangée) */}
-                            <div className="flex items-center gap-4 bg-gray-800/50 p-2 rounded-xl border border-gray-700">
-                                <button
-                                    onClick={fetchData}
-                                    className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition border border-gray-600 shadow-sm"
-                                >
-                                    <span>🔄</span> <span className="hidden sm:inline">Rafraîchir</span>
-                                </button>
-                                <label className="flex items-center gap-2 text-sm pr-2 cursor-pointer select-none">
-                                    <div className="relative">
-                                        <input
-                                            type="checkbox"
-                                            checked={autoRefresh}
-                                            onChange={(e) => setAutoRefresh(e.target.checked)}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
-                                    </div>
-                                    <span className="text-gray-300">Auto-refresh</span>
-                                </label>
-                            </div>
-                        </div>
-                    </header>
+        {/* Partie Droite : Boutons de contrôle (inchangée) */}
+        <div className="flex items-center gap-4 bg-gray-800/50 p-2 rounded-xl border border-gray-700">
+            <button
+                onClick={fetchData}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition border border-gray-600 shadow-sm"
+            >
+                <span>🔄</span> Rafraîchir
+            </button>
+            <label className="flex items-center gap-2 text-sm pr-2 cursor-pointer select-none">
+                <input
+                    type="checkbox"
+                    checked={autoRefresh}
+                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-600 text-cyan-400 focus:ring-cyan-500"
+                />
+                <span className="text-gray-300">Auto-refresh</span>
+            </label>
+        </div>
+    </div>
+</header>
 
                     {notification && (
                         <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
