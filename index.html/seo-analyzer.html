@@ -58,72 +58,95 @@
                 mot_cle: '', url: '', volume: '', indice_business: ''
             });
 
-           // Charger les données (Version "Force Brute" - Détection automatique des colonnes)
+            // Charger les données avec logs détaillés
             const fetchData = async () => {
                 try {
+                    console.log("=== CHARGEMENT DES DONNÉES ===");
                     const response = await fetch(API_CONFIG.GET_DATA);
                     const result = await response.json();
                     
+                    console.log("Réponse brute:", result);
+                    
+                    // Extraire les mots-clés
                     let rawData = [];
-                    // On gère tous les formats possibles renvoyés par n8n
-                    if (Array.isArray(result)) rawData = result;
-                    else if (result.mots_cles) rawData = result.mots_cles;
-                    else if (result.data) rawData = result.data;
+                    if (result.success && result.mots_cles) {
+                        rawData = result.mots_cles;
+                    } else if (Array.isArray(result)) {
+                        rawData = result;
+                    } else if (result.data) {
+                        rawData = result.data;
+                    } else if (result.mots_cles) {
+                        rawData = result.mots_cles;
+                    }
 
-                    console.log("Données brutes reçues:", rawData);
+                    console.log(`Lignes extraites: ${rawData.length}`);
+                    if (rawData[0]) {
+                        console.log("Exemple de ligne:", rawData[0]);
+                        console.log("Colonnes disponibles:", Object.keys(rawData[0]));
+                    }
 
-                    const keywords = rawData
-                        // Étape 1 : On garde tout ce qui n'est pas vide
-                        .filter(item => {
-                            // On vérifie s'il y a au moins une valeur non vide dans la ligne
-                            return Object.values(item).some(val => val && val.toString().trim() !== "");
-                        })
-                        .map(item => {
-                            const keys = Object.keys(item);
-                            
-                            // Étape 2 : Détective des colonnes
-                            // On cherche une colonne qui contient "mot" ou "key". Sinon on prend la 2ème colonne (index 1) ou la 1ère.
-                            const keyMot = keys.find(k => k.toLowerCase().includes('mot') || k.toLowerCase().includes('key')) || keys[1] || keys[0];
-                            const keyPriorite = keys.find(k => k.toLowerCase().includes('prio')) || 'priorite';
-                            const keyVolume = keys.find(k => k.toLowerCase().includes('vol')) || 'volume';
-                            const keyBusiness = keys.find(k => k.toLowerCase().includes('bus') || k.toLowerCase().includes('ind')) || 'indice_business';
-
-                            return {
-                                mot_cle: item[keyMot] || "Mot-clé inconnu",
-                                url: item.url || item['url'] || '',
-                                volume: item[keyVolume] || 0,
-                                indice_business: item[keyBusiness] || 0,
-                                // On force la majuscule pour que les couleurs (HAUTE, FAIBLE) fonctionnent
-                                priorite: (item[keyPriorite] || 'MOYENNE').toString().toUpperCase(),
-                                position_actuelle: item.position_actuelle || 'N/A',
-                                nb_concurrents: item.nb_concurrents || 0,
-                                justification: item.justification || '',
-                                top10_serp: [],
-                                actions_suggerees: ''
-                            };
-                        });
-
-                    console.log("Données prêtes à afficher :", keywords);
-
-                    // Calcul des stats pour les compteurs en haut
-                    const stats = {
-                        haute: keywords.filter(k => k.priorite.includes('HAUTE')).length,
-                        moyenne: keywords.filter(k => k.priorite.includes('MOYENNE')).length,
-                        faible: keywords.filter(k => k.priorite.includes('FAIBLE')).length,
-                        impossible: keywords.filter(k => k.priorite.includes('IMPOSSIBLE')).length
+                    // Fonction pour normaliser les priorités
+                    const normalizePriority = (value) => {
+                        if (!value) return 'MOYENNE';
+                        const str = value.toString().toUpperCase().trim();
+                        if (str.includes('HAUTE') || str.includes('HIGH')) return 'HAUTE';
+                        if (str.includes('FAIBLE') || str.includes('LOW')) return 'FAIBLE';
+                        if (str.includes('IMPOSSIBLE')) return 'IMPOSSIBLE';
+                        return 'MOYENNE';
                     };
 
-                    setData({ stats: stats, mots_cles: keywords });
+                    // Traiter les données
+                    const keywords = rawData
+                        .filter(item => item && item.mot_cle && item.mot_cle.trim() !== '')
+                        .map((item, index) => {
+                            const prioriteOriginale = item.priorite;
+                            const prioriteNormalisee = normalizePriority(prioriteOriginale);
+                            
+                            const keyword = {
+                                mot_cle: item.mot_cle || `Mot-clé ${index + 1}`,
+                                url: item.url || '',
+                                volume: parseInt(item.volume) || 0,
+                                indice_business: parseInt(item.indice_business) || 0,
+                                priorite: prioriteNormalisee,
+                                position_actuelle: item.position_actuelle || 'N/A',
+                                nb_concurrents: parseInt(item.nb_concurrents) || 0,
+                                nb_sites_gouv: parseInt(item.nb_sites_gouv) || 0,
+                                nb_medias: parseInt(item.nb_medias) || 0,
+                                justification: item.justification || '',
+                                actions_suggerees: item.actions_suggerees || '',
+                                top10_serp: item.top10_serp || '[]',
+                                url_match: item.url_match || false,
+                                flag_juridique: item.flag_juridique || false,
+                                derniere_maj: item.derniere_maj || ''
+                            };
+                            
+                            console.log(`${index + 1}. "${keyword.mot_cle}" → "${prioriteOriginale}" → ${prioriteNormalisee}`);
+                            return keyword;
+                        });
+
+                    // Calculer les stats
+                    const stats = {
+                        haute: keywords.filter(k => k.priorite === 'HAUTE').length,
+                        moyenne: keywords.filter(k => k.priorite === 'MOYENNE').length,
+                        faible: keywords.filter(k => k.priorite === 'FAIBLE').length,
+                        impossible: keywords.filter(k => k.priorite === 'IMPOSSIBLE').length
+                    };
+
+                    console.log("=== STATS FINALES ===");
+                    console.log(`HAUTE: ${stats.haute}, MOYENNE: ${stats.moyenne}, FAIBLE: ${stats.faible}, IMPOSSIBLE: ${stats.impossible}`);
+                    console.log(`Total: ${keywords.length} mots-clés`);
+
+                    setData({ stats, mots_cles: keywords });
 
                 } catch (error) {
-                    console.error('Erreur:', error);
-                    showNotification('Erreur de lecture', 'error');
+                    console.error('=== ERREUR CHARGEMENT ===', error);
+                    showNotification('Erreur de chargement des données', 'error');
                 } finally {
                     setLoading(false);
                 }
             };
 
-            // --- FONCTION D'AJOUT CORRIGÉE ---
+            // Ajouter un mot-clé
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setAdding(true);
@@ -140,80 +163,77 @@
                         })
                     });
 
-                    // On accepte la réponse même si ce n'est pas du JSON parfait
-                    // Si le code HTTP est 200 (OK), on considère que c'est bon
-                    if (response.ok) {
-                        showNotification('✅ Mot-clé envoyé ! Analyse en cours...', 'success');
+                    const result = await response.json();
+                    
+                    if (result.success || response.ok) {
+                        showNotification('✅ Mot-clé ajouté ! Analyse en cours (40-50 sec)', 'success');
                         setFormData({ mot_cle: '', url: '', volume: '', indice_business: '' });
                         
                         setTimeout(() => {
                             fetchData();
-                            showNotification('🔄 Rafraîchissement des données', 'info');
+                            showNotification('🔄 Données rafraîchies', 'info');
                         }, 45000);
                     } else {
-                        showNotification('❌ Erreur serveur', 'error');
+                        showNotification('⚠️ Le mot-clé a été ajouté mais vérifiez le résultat', 'info');
+                        setTimeout(() => fetchData(), 45000);
                     }
                 } catch (error) {
-                    console.error('Erreur:', error);
-                    showNotification('❌ Erreur de connexion', 'error');
+                    console.error('Erreur ajout:', error);
+                    showNotification('⚠️ Le mot-clé a peut-être été ajouté, vérifiez le Google Sheet', 'info');
+                    setTimeout(() => fetchData(), 45000);
                 } finally {
                     setAdding(false);
                 }
             };
 
+            // Afficher notification
             const showNotification = (message, type) => {
                 setNotification({ message, type });
                 setTimeout(() => setNotification(null), 5000);
             };
 
+            // Charger au démarrage et auto-refresh
             useEffect(() => {
                 fetchData();
+                
                 const interval = autoRefresh ? setInterval(() => {
-                    if (document.visibilityState === 'visible') fetchData();
+                    if (document.visibilityState === 'visible') {
+                        fetchData();
+                    }
                 }, 60000) : null;
-                return () => { if (interval) clearInterval(interval); };
+
+                return () => {
+                    if (interval) clearInterval(interval);
+                };
             }, [autoRefresh]);
 
             return (
                 <div className="min-h-screen p-6">
-                   <header className="mb-10">
-    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        
-        {/* Partie Gauche : Titre Texte uniquement */}
-        <div className="flex flex-col items-start">
-            <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
-                Content Factory
-            </h1>
-            
-            {/* Ligne "by L-Expert-Comptable.com" en texte */}
-            <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-gray-400 text-lg font-medium italic">by</span>
-                <span className="text-white text-2xl md:text-3xl font-bold tracking-tight">
-                    L-Expert-Comptable<span className="text-[#73EDE0]">.com</span>
-                </span>
-            </div>
-        </div>
-
-        {/* Partie Droite : Boutons de contrôle (inchangée) */}
-        <div className="flex items-center gap-4 bg-gray-800/50 p-2 rounded-xl border border-gray-700">
-            <button
-                onClick={fetchData}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition border border-gray-600 shadow-sm"
-            >
-                <span>🔄</span> Rafraîchir
-            </button>
-            <label className="flex items-center gap-2 text-sm pr-2 cursor-pointer select-none">
-                <input
-                    type="checkbox"
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-600 text-cyan-400 focus:ring-cyan-500"
-                />
-                <span className="text-gray-300">Auto-refresh</span>
-            </label>
-        </div>
-    </div>
-</header>
+                    <header className="mb-8">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-3xl font-bold text-white">Content Factory - LEC</h1>
+                                <p className="text-gray-400 text-sm">Analyse SEO automatisée avec IA</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={fetchData}
+                                    className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+                                >
+                                    <span>🔄</span> Rafraîchir
+                                </button>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={autoRefresh}
+                                        onChange={(e) => setAutoRefresh(e.target.checked)}
+                                        className="w-4 h-4"
+                                    />
+                                    Auto-refresh (60s)
+                                </label>
+                            </div>
+                        </div>
+                    </header>
 
                     {notification && (
                         <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
@@ -245,16 +265,18 @@
                                     <div>
                                         <label className="block text-sm font-medium mb-2">Mot-clé *</label>
                                         <input
-                                            type="text" required value={formData.mot_cle}
+                                            type="text" required
+                                            value={formData.mot_cle}
                                             onChange={(e) => setFormData({...formData, mot_cle: e.target.value})}
                                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-400"
-                                            placeholder="ex: expert comptable startup"
+                                            placeholder="expert comptable startup"
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-2">URL cible *</label>
                                         <input
-                                            type="url" required value={formData.url}
+                                            type="url" required
+                                            value={formData.url}
                                             onChange={(e) => setFormData({...formData, url: e.target.value})}
                                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-400"
                                             placeholder="https://..."
@@ -337,7 +359,12 @@
         }
 
         function DetailModal({ keyword, onClose }) {
-            const top10 = keyword.top10_serp ? JSON.parse(keyword.top10_serp) : [];
+            let top10 = [];
+            try {
+                top10 = keyword.top10_serp ? JSON.parse(keyword.top10_serp) : [];
+            } catch(e) {
+                top10 = [];
+            }
             const actions = keyword.actions_suggerees ? keyword.actions_suggerees.split('\n').filter(a => a.trim()) : [];
 
             return (
@@ -353,10 +380,12 @@
                                 <MetricCard icon="💰" label="Indice Business" value={keyword.indice_business} />
                                 <MetricCard icon="📍" label="Position" value={keyword.position_actuelle} />
                             </div>
-                            <div className="bg-gray-700 rounded-xl p-4">
-                                <h3 className="font-semibold mb-2">💡 Justification</h3>
-                                <p className="text-gray-300 text-sm">{keyword.justification}</p>
-                            </div>
+                            {keyword.justification && (
+                                <div className="bg-gray-700 rounded-xl p-4">
+                                    <h3 className="font-semibold mb-2">💡 Justification</h3>
+                                    <p className="text-gray-300 text-sm">{keyword.justification}</p>
+                                </div>
+                            )}
                             {top10.length > 0 && (
                                 <div className="bg-gray-700 rounded-xl p-4">
                                     <h3 className="font-semibold mb-3">🔝 TOP 10 SERP</h3>
