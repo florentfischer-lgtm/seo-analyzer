@@ -8,39 +8,14 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        
-        .gradient-bg {
-            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-        }
-        
-        .card-hover {
-            transition: all 0.3s ease;
-        }
-        
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-        }
-        
-        .priority-haute {
-            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-        }
-        
-        .priority-moyenne {
-            background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
-        }
-        
-        .priority-faible {
-            background: linear-gradient(135deg, #EAB308 0%, #CA8A04 100%);
-        }
-        
-        .priority-impossible {
-            background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
-        }
-        
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }
+        .priority-haute { background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%); }
+        .priority-moyenne { background: linear-gradient(135deg, #F97316 0%, #EA580C 100%); }
+        .priority-faible { background: linear-gradient(135deg, #EAB308 0%, #CA8A04 100%); }
+        .priority-impossible { background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%); }
         .loading-spinner {
             border: 3px solid #1E293B;
             border-top: 3px solid #73EDE0;
@@ -49,28 +24,10 @@
             height: 40px;
             animation: spin 1s linear infinite;
         }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .progress-bar {
-            transition: width 0.5s ease;
-        }
-        
-        .modal-backdrop {
-            backdrop-filter: blur(8px);
-            background: rgba(0, 0, 0, 0.7);
-        }
-        
-        .kanban-column {
-            min-height: 400px;
-        }
-        
-        .turquoise-glow {
-            box-shadow: 0 0 20px rgba(115, 237, 224, 0.3);
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-backdrop { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.7); }
+        .kanban-column { min-height: 400px; }
+        .turquoise-glow { box-shadow: 0 0 20px rgba(115, 237, 224, 0.3); }
     </style>
 </head>
 <body class="gradient-bg min-h-screen text-gray-100">
@@ -83,13 +40,11 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Configuration des webhooks
         const API_CONFIG = {
             ADD_KEYWORD: 'https://florentfischer.app.n8n.cloud/webhook/ajout-mot-cle',
             GET_DATA: 'https://florentfischer.app.n8n.cloud/webhook/donnees-seo'
         };
 
-        // Composant principal
         function SEOAnalyzer() {
             const [data, setData] = useState({ stats: { haute: 0, moyenne: 0, faible: 0, impossible: 0 }, mots_cles: [] });
             const [loading, setLoading] = useState(true);
@@ -99,31 +54,40 @@
             const [notification, setNotification] = useState(null);
             const [autoRefresh, setAutoRefresh] = useState(true);
 
-            // Formulaire
             const [formData, setFormData] = useState({
-                mot_cle: '',
-                url: '',
-                volume: '',
-                indice_business: ''
+                mot_cle: '', url: '', volume: '', indice_business: ''
             });
 
-            // Charger les données
+            // --- FONCTION DE CHARGEMENT CORRIGÉE ---
             const fetchData = async () => {
                 try {
                     const response = await fetch(API_CONFIG.GET_DATA);
                     const result = await response.json();
-                    if (result.success) {
+                    
+                    // CAS 1 : n8n renvoie directement un tableau (votre cas actuel)
+                    if (Array.isArray(result)) {
+                        // On calcule les stats nous-mêmes
+                        const stats = {
+                            haute: result.filter(k => k.priorite === 'HAUTE').length,
+                            moyenne: result.filter(k => k.priorite === 'MOYENNE').length,
+                            faible: result.filter(k => k.priorite === 'FAIBLE').length,
+                            impossible: result.filter(k => k.priorite === 'IMPOSSIBLE').length
+                        };
+                        setData({ success: true, stats: stats, mots_cles: result });
+                    } 
+                    // CAS 2 : n8n renvoie un objet propre { success: true ... }
+                    else if (result.success || result.mots_cles) {
                         setData(result);
                     }
                 } catch (error) {
                     console.error('Erreur lors du chargement:', error);
-                    showNotification('Erreur lors du chargement des données', 'error');
+                    showNotification('Erreur de chargement (vérifiez la console)', 'error');
                 } finally {
                     setLoading(false);
                 }
             };
 
-            // Ajouter un mot-clé
+            // --- FONCTION D'AJOUT CORRIGÉE ---
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setAdding(true);
@@ -140,19 +104,18 @@
                         })
                     });
 
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        showNotification('✅ Mot-clé ajouté ! L\'analyse va démarrer (40-50 sec)', 'success');
+                    // On accepte la réponse même si ce n'est pas du JSON parfait
+                    // Si le code HTTP est 200 (OK), on considère que c'est bon
+                    if (response.ok) {
+                        showNotification('✅ Mot-clé envoyé ! Analyse en cours...', 'success');
                         setFormData({ mot_cle: '', url: '', volume: '', indice_business: '' });
                         
-                        // Rafraîchir après 45 secondes
                         setTimeout(() => {
                             fetchData();
-                            showNotification('🔄 Données rafraîchies', 'info');
+                            showNotification('🔄 Rafraîchissement des données', 'info');
                         }, 45000);
                     } else {
-                        showNotification('❌ Erreur lors de l\'ajout', 'error');
+                        showNotification('❌ Erreur serveur', 'error');
                     }
                 } catch (error) {
                     console.error('Erreur:', error);
@@ -162,50 +125,37 @@
                 }
             };
 
-            // Notification
             const showNotification = (message, type) => {
                 setNotification({ message, type });
                 setTimeout(() => setNotification(null), 5000);
             };
 
-            // Auto-refresh toutes les 60 secondes
             useEffect(() => {
                 fetchData();
-                
                 const interval = autoRefresh ? setInterval(() => {
-                    if (document.visibilityState === 'visible') {
-                        fetchData();
-                    }
+                    if (document.visibilityState === 'visible') fetchData();
                 }, 60000) : null;
-
-                return () => {
-                    if (interval) clearInterval(interval);
-                };
+                return () => { if (interval) clearInterval(interval); };
             }, [autoRefresh]);
 
             return (
                 <div className="min-h-screen p-6">
-                 {/* Header Modifié */}
+                    {/* Header avec Logo Corrigé */}
                     <header className="mb-8">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            
-                            {/* Partie Gauche : Titre + Content Factory */}
                             <div>
-                                <h1 className="text-3xl font-bold text-white mb-2">Content Factory</h1>
+                                <h1 className="text-3xl font-bold text-white mb-2">SEO Keyword Analyzer</h1>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-gray-400 text-sm font-medium">by</span>
-                                    {/* Fond blanc ajouté pour que le logo officiel (foncé) soit visible */}
+                                    <span className="text-gray-400 text-sm font-medium">Content factory by</span>
                                     <div className="bg-white px-2 py-1 rounded h-8 flex items-center">
                                         <img 
-                                            src="./download-removebg-preview.png" 
+                                            src="https://www.l-expert-comptable.com/sites/default/files/logo_lec.svg" 
                                             alt="L-Expert-Comptable.com" 
                                             className="h-full w-auto"
                                         />
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Partie Droite : Boutons (inchangée) */}
                             <div className="flex items-center gap-4">
                                 <button
                                     onClick={fetchData}
@@ -226,7 +176,6 @@
                         </div>
                     </header>
 
-                    {/* Notification */}
                     {notification && (
                         <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
                             notification.type === 'success' ? 'bg-green-500' :
@@ -242,7 +191,6 @@
                         </div>
                     ) : (
                         <>
-                            {/* Stats Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                                 <StatCard title="HAUTE" count={data.stats.haute} color="priority-haute" />
                                 <StatCard title="MOYENNE" count={data.stats.moyenne} color="priority-moyenne" />
@@ -250,7 +198,6 @@
                                 <StatCard title="IMPOSSIBLE" count={data.stats.impossible} color="priority-impossible" />
                             </div>
 
-                            {/* Formulaire d'ajout */}
                             <div className="bg-gray-800 rounded-xl p-6 mb-8 card-hover">
                                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                                     <span>🚀</span> Ajouter un mot-clé
@@ -259,104 +206,62 @@
                                     <div>
                                         <label className="block text-sm font-medium mb-2">Mot-clé *</label>
                                         <input
-                                            type="text"
-                                            required
-                                            value={formData.mot_cle}
+                                            type="text" required value={formData.mot_cle}
                                             onChange={(e) => setFormData({...formData, mot_cle: e.target.value})}
                                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-400"
-                                            placeholder="expert comptable startup"
+                                            placeholder="ex: expert comptable startup"
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-2">URL cible *</label>
                                         <input
-                                            type="url"
-                                            required
-                                            value={formData.url}
+                                            type="url" required value={formData.url}
                                             onChange={(e) => setFormData({...formData, url: e.target.value})}
                                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-400"
-                                            placeholder="https://www.l-expert-comptable.com/..."
+                                            placeholder="https://..."
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Volume (optionnel)</label>
+                                        <label className="block text-sm font-medium mb-2">Volume</label>
                                         <input
-                                            type="number"
-                                            value={formData.volume}
+                                            type="number" value={formData.volume}
                                             onChange={(e) => setFormData({...formData, volume: e.target.value})}
                                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-400"
-                                            placeholder="1200"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Indice business (optionnel)</label>
+                                        <label className="block text-sm font-medium mb-2">Indice Business</label>
                                         <input
-                                            type="number"
-                                            value={formData.indice_business}
+                                            type="number" value={formData.indice_business}
                                             onChange={(e) => setFormData({...formData, indice_business: e.target.value})}
                                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-400"
-                                            placeholder="85"
                                         />
                                     </div>
                                     <div className="md:col-span-2">
                                         <button
-                                            type="submit"
-                                            disabled={adding}
-                                            className="w-full bg-cyan-400 hover:bg-cyan-500 text-gray-900 font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            type="submit" disabled={adding}
+                                            className="w-full bg-cyan-400 hover:bg-cyan-500 text-gray-900 font-bold py-3 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
                                         >
-                                            {adding ? (
-                                                <>
-                                                    <div className="loading-spinner border-gray-900 border-t-cyan-400 w-5 h-5"></div>
-                                                    Analyse en cours (40-50 sec)...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span>🚀</span> Lancer l'analyse
-                                                </>
-                                            )}
+                                            {adding ? 'Analyse en cours...' : '🚀 Lancer l\'analyse'}
                                         </button>
                                     </div>
                                 </form>
                             </div>
 
-                            {/* Kanban Board */}
                             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                                <KanbanColumn 
-                                    title="🔴 HAUTE" 
-                                    keywords={data.mots_cles.filter(k => k.priorite === 'HAUTE')}
-                                    onCardClick={(k) => { setSelectedKeyword(k); setShowModal(true); }}
-                                />
-                                <KanbanColumn 
-                                    title="🟠 MOYENNE" 
-                                    keywords={data.mots_cles.filter(k => k.priorite === 'MOYENNE')}
-                                    onCardClick={(k) => { setSelectedKeyword(k); setShowModal(true); }}
-                                />
-                                <KanbanColumn 
-                                    title="🟡 FAIBLE" 
-                                    keywords={data.mots_cles.filter(k => k.priorite === 'FAIBLE')}
-                                    onCardClick={(k) => { setSelectedKeyword(k); setShowModal(true); }}
-                                />
-                                <KanbanColumn 
-                                    title="⚫ IMPOSSIBLE" 
-                                    keywords={data.mots_cles.filter(k => k.priorite === 'IMPOSSIBLE')}
-                                    onCardClick={(k) => { setSelectedKeyword(k); setShowModal(true); }}
-                                />
+                                <KanbanColumn title="🔴 HAUTE" keywords={data.mots_cles.filter(k => k.priorite === 'HAUTE')} onCardClick={(k) => { setSelectedKeyword(k); setShowModal(true); }} />
+                                <KanbanColumn title="🟠 MOYENNE" keywords={data.mots_cles.filter(k => k.priorite === 'MOYENNE')} onCardClick={(k) => { setSelectedKeyword(k); setShowModal(true); }} />
+                                <KanbanColumn title="🟡 FAIBLE" keywords={data.mots_cles.filter(k => k.priorite === 'FAIBLE')} onCardClick={(k) => { setSelectedKeyword(k); setShowModal(true); }} />
+                                <KanbanColumn title="⚫ IMPOSSIBLE" keywords={data.mots_cles.filter(k => k.priorite === 'IMPOSSIBLE')} onCardClick={(k) => { setSelectedKeyword(k); setShowModal(true); }} />
                             </div>
                         </>
                     )}
 
-                    {/* Modal détails */}
-                    {showModal && selectedKeyword && (
-                        <DetailModal 
-                            keyword={selectedKeyword} 
-                            onClose={() => setShowModal(false)}
-                        />
-                    )}
+                    {showModal && selectedKeyword && <DetailModal keyword={selectedKeyword} onClose={() => setShowModal(false)} />}
                 </div>
             );
         }
 
-        // Composant StatCard
         function StatCard({ title, count, color }) {
             return (
                 <div className={`${color} rounded-xl p-6 text-white card-hover`}>
@@ -366,202 +271,82 @@
             );
         }
 
-        // Composant KanbanColumn
         function KanbanColumn({ title, keywords, onCardClick }) {
             return (
                 <div className="bg-gray-800 rounded-xl p-4 kanban-column">
                     <h3 className="font-bold text-lg mb-4">{title}</h3>
                     <div className="space-y-3">
-                        {keywords.length === 0 ? (
-                            <p className="text-gray-500 text-sm text-center py-8">Aucun mot-clé</p>
-                        ) : (
-                            keywords.map((keyword, index) => (
-                                <KeywordCard 
-                                    key={index} 
-                                    keyword={keyword}
-                                    onClick={() => onCardClick(keyword)}
-                                />
-                            ))
-                        )}
+                        {keywords.length === 0 ? <p className="text-gray-500 text-sm text-center py-8">Aucun mot-clé</p> : 
+                            keywords.map((k, i) => <KeywordCard key={i} keyword={k} onClick={() => onCardClick(k)} />)
+                        }
                     </div>
                 </div>
             );
         }
 
-        // Composant KeywordCard
         function KeywordCard({ keyword, onClick }) {
             return (
-                <div 
-                    onClick={onClick}
-                    className="bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-600 transition"
-                >
+                <div onClick={onClick} className="bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-600 transition">
                     <h4 className="font-semibold text-white mb-2 truncate">{keyword.mot_cle}</h4>
                     <div className="space-y-1 text-sm text-gray-300">
-                        <div className="flex justify-between">
-                            <span>📊 Volume:</span>
-                            <span className="font-medium">{keyword.volume || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span>💰 Business:</span>
-                            <span className="font-medium">{keyword.indice_business || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span>📍 Position:</span>
-                            <span className="font-medium">{keyword.position_actuelle || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span>⚔️ Concurrents:</span>
-                            <span className="font-medium">{keyword.nb_concurrents || 0}</span>
-                        </div>
-                        {keyword.derniere_maj && (
-                            <div className="text-xs text-gray-400 mt-2">
-                                {new Date(keyword.derniere_maj).toLocaleDateString('fr-FR')}
-                            </div>
-                        )}
+                        <div className="flex justify-between"><span>📊 Volume:</span><span className="font-medium">{keyword.volume || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span>💰 Business:</span><span className="font-medium">{keyword.indice_business || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span>📍 Position:</span><span className="font-medium">{keyword.position_actuelle || 'N/A'}</span></div>
                     </div>
-                    <button className="mt-3 w-full bg-cyan-400 hover:bg-cyan-500 text-gray-900 font-medium py-1.5 rounded text-sm transition">
-                        👁️ Détails
-                    </button>
                 </div>
             );
         }
 
-        // Composant DetailModal
         function DetailModal({ keyword, onClose }) {
             const top10 = keyword.top10_serp ? JSON.parse(keyword.top10_serp) : [];
             const actions = keyword.actions_suggerees ? keyword.actions_suggerees.split('\n').filter(a => a.trim()) : [];
 
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop" onClick={onClose}>
-                    <div 
-                        className="bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Header */}
-                        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 flex justify-between items-start">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">{keyword.mot_cle}</h2>
-                                <a 
-                                    href={keyword.url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-cyan-400 text-sm hover:underline"
-                                >
-                                    {keyword.url}
-                                </a>
-                            </div>
-                            <button 
-                                onClick={onClose}
-                                className="text-gray-400 hover:text-white text-3xl leading-none"
-                            >
-                                ×
-                            </button>
+                    <div className="bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 flex justify-between">
+                            <h2 className="text-2xl font-bold text-white">{keyword.mot_cle}</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl">×</button>
                         </div>
-
                         <div className="p-6 space-y-6">
-                            {/* Métriques */}
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <MetricCard icon="📊" label="Volume" value={keyword.volume || 'N/A'} />
-                                <MetricCard icon="💰" label="Indice Business" value={keyword.indice_business || 'N/A'} />
-                                <MetricCard icon="📍" label="Position" value={keyword.position_actuelle || 'N/A'} />
-                                <MetricCard icon="⚔️" label="Concurrents" value={keyword.nb_concurrents || 0} />
-                                <MetricCard icon="🏛️" label="Sites Gouv" value={keyword.nb_sites_gouv || 0} />
-                                <MetricCard icon="📰" label="Médias" value={keyword.nb_medias || 0} />
+                                <MetricCard icon="📊" label="Volume" value={keyword.volume} />
+                                <MetricCard icon="💰" label="Indice Business" value={keyword.indice_business} />
+                                <MetricCard icon="📍" label="Position" value={keyword.position_actuelle} />
                             </div>
-
-                            {/* Priorité */}
                             <div className="bg-gray-700 rounded-xl p-4">
-                                <h3 className="font-semibold mb-2">Score de priorité</h3>
-                                <div className="flex items-center gap-4">
-                                    <div className={`px-4 py-2 rounded-lg font-bold ${
-                                        keyword.priorite === 'HAUTE' ? 'bg-red-500' :
-                                        keyword.priorite === 'MOYENNE' ? 'bg-orange-500' :
-                                        keyword.priorite === 'FAIBLE' ? 'bg-yellow-500' :
-                                        'bg-gray-500'
-                                    }`}>
-                                        {keyword.priorite}
-                                    </div>
-                                    {keyword.url_match && (
-                                        <span className="text-green-400 text-sm">✓ URL Match</span>
-                                    )}
-                                    {keyword.flag_juridique && (
-                                        <span className="text-yellow-400 text-sm">⚠️ Juridique</span>
-                                    )}
-                                </div>
+                                <h3 className="font-semibold mb-2">💡 Justification</h3>
+                                <p className="text-gray-300 text-sm">{keyword.justification}</p>
                             </div>
-
-                            {/* Justification */}
-                            {keyword.justification && (
-                                <div className="bg-gray-700 rounded-xl p-4">
-                                    <h3 className="font-semibold mb-2">💡 Justification IA</h3>
-                                    <p className="text-gray-300 text-sm leading-relaxed">{keyword.justification}</p>
-                                </div>
-                            )}
-
-                            {/* Actions suggérées */}
-                            {actions.length > 0 && (
-                                <div className="bg-gray-700 rounded-xl p-4">
-                                    <h3 className="font-semibold mb-3">📋 Plan d'action</h3>
-                                    <div className="space-y-2">
-                                        {actions.map((action, i) => (
-                                            <div key={i} className="flex items-start gap-3 text-sm">
-                                                <input type="checkbox" className="mt-1" />
-                                                <span className="text-gray-300">{action}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* TOP 10 SERP */}
                             {top10.length > 0 && (
                                 <div className="bg-gray-700 rounded-xl p-4">
                                     <h3 className="font-semibold mb-3">🔝 TOP 10 SERP</h3>
                                     <div className="space-y-2">
                                         {top10.map((item, i) => (
-                                            <div key={i} className="flex items-center gap-3 text-sm bg-gray-600 p-3 rounded">
+                                            <div key={i} className="flex gap-3 text-sm bg-gray-600 p-2 rounded">
                                                 <span className="font-bold text-cyan-400">#{i + 1}</span>
-                                                <a 
-                                                    href={item.url} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="flex-1 text-gray-300 hover:text-white truncate"
-                                                >
-                                                    {item.title || item.url}
-                                                </a>
-                                                {item.type === 'gouv' && <span>🏛️</span>}
-                                                {item.type === 'concurrent' && <span>⚔️</span>}
-                                                {item.type === 'media' && <span>📰</span>}
+                                                <a href={item.url} target="_blank" className="text-gray-300 hover:text-white truncate flex-1">{item.title || item.url}</a>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
-
-                            {/* Infos additionnelles */}
-                            <div className="text-sm text-gray-400">
-                                {keyword.derniere_maj && (
-                                    <p>Dernière analyse : {new Date(keyword.derniere_maj).toLocaleString('fr-FR')}</p>
-                                )}
-                            </div>
                         </div>
                     </div>
                 </div>
             );
         }
 
-        // Composant MetricCard
         function MetricCard({ icon, label, value }) {
             return (
                 <div className="bg-gray-700 rounded-lg p-4">
                     <div className="text-2xl mb-1">{icon}</div>
                     <div className="text-xs text-gray-400 mb-1">{label}</div>
-                    <div className="text-xl font-bold">{value}</div>
+                    <div className="text-xl font-bold">{value || 'N/A'}</div>
                 </div>
             );
         }
 
-        // Rendu de l'application
         ReactDOM.render(<SEOAnalyzer />, document.getElementById('root'));
     </script>
 </body>
