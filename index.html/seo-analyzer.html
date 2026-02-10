@@ -58,27 +58,45 @@
                 mot_cle: '', url: '', volume: '', indice_business: ''
             });
 
-            // --- FONCTION DE CHARGEMENT CORRIGÉE ---
-           // Charger les données (Version Blindée)
+            // Charger les données (Version Finale - Mapping Direct)
             const fetchData = async () => {
                 try {
                     const response = await fetch(API_CONFIG.GET_DATA);
                     const result = await response.json();
                     
-                    let keywords = [];
+                    let rawData = [];
+                    // Détection du format (Liste ou Objet)
+                    if (Array.isArray(result)) rawData = result;
+                    else if (result.mots_cles) rawData = result.mots_cles;
+                    else if (result.data) rawData = result.data;
 
-                    // CAS 1 : n8n renvoie directement la liste (tableau)
-                    if (Array.isArray(result)) {
-                        keywords = result;
-                    } 
-                    // CAS 2 : n8n renvoie un objet avec une clé "data" ou "mots_cles"
-                    else if (result.mots_cles) {
-                        keywords = result.mots_cles;
-                    } else if (result.data) {
-                        keywords = result.data;
-                    }
+                    // Outil de diagnostic : Regardez la console (F12) pour voir ce qui arrive vraiment
+                    console.log("Données reçues de n8n (Brut) :", rawData); 
 
-                    // Calcul des stats en direct
+                    // Transformation des données
+                    const keywords = rawData
+                        // 1. On garde seulement les lignes qui ont un vrai mot-clé (évite les lignes vides)
+                        .filter(item => item.mot_cle && item.mot_cle.toString().trim() !== "")
+                        // 2. On map les colonnes EXACTES de votre Google Sheet (Image 2)
+                        .map(item => ({
+                            mot_cle: item.mot_cle,
+                            url: item.url,
+                            // On s'assure que ce sont des nombres ou 0
+                            volume: item.volume || 0,
+                            indice_business: item.indice_business || 0,
+                            // On force la priorité en majuscule pour que les couleurs marchent
+                            priorite: (item.priorite || 'INCONNUE').toUpperCase(),
+                            position_actuelle: item.position_actuelle || 'N/A',
+                            nb_concurrents: item.nb_concurrents || 0,
+                            justification: item.justification || '',
+                            // Gestion des champs JSON complexes
+                            top10_serp: typeof item.top10_serp === 'string' ? item.top10_serp : JSON.stringify(item.top10_serp || []),
+                            actions_suggerees: item.actions_suggerees || ''
+                        }));
+
+                    console.log("Données traitées pour l'affichage :", keywords);
+
+                    // Calcul des stats
                     const stats = {
                         haute: keywords.filter(k => k.priorite === 'HAUTE').length,
                         moyenne: keywords.filter(k => k.priorite === 'MOYENNE').length,
