@@ -102,12 +102,17 @@
                             indice_business: parseInt(item.indice_business) || 0,
                             priorite: normalizePriority(item.priorite),
                             position_actuelle: item.position_actuelle || 'N/A',
+                            delta_positions: item.delta_positions || 'N/A',
+                            clics_16m: parseInt(item.clics_16m) || 0,
+                            impressions_16m: parseInt(item.impressions_16m) || 0,
+                            ctr: item.ctr || 'N/A',
                             nb_concurrents: parseInt(item.nb_concurrents) || 0,
                             nb_sites_gouv: parseInt(item.nb_sites_gouv) || 0,
                             nb_medias: parseInt(item.nb_medias) || 0,
                             justification: item.justification || '',
                             actions_suggerees: item.actions_suggerees || '',
                             top10_serp: item.top10_serp || '[]',
+                            url_trouvee: item.url_trouvee || '',
                             url_match: item.url_match || false,
                             flag_juridique: item.flag_juridique || false,
                             derniere_maj: item.derniere_maj || ''
@@ -255,19 +260,43 @@
 
             return (
                 <div className="min-h-screen p-6">
-                    <header className="mb-8">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="text-3xl font-bold text-white">Content Factory - LEC</h1>
-                                <p className="text-gray-400 text-sm">Analyse SEO automatisée avec IA • Drag & Drop activé 🎯</p>
+                   {/* Header Textuel - Version Finale & Stable */}
+                    <header className="mb-10">
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                            
+                            {/* Partie Gauche : Titre + Signature */}
+                            <div className="flex flex-col items-start gap-1">
+                                <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
+                                    Content Factory
+                                </h1>
+                                
+                                <div className="flex items-baseline gap-2 mt-1">
+                                    <span className="text-gray-400 text-lg font-medium italic">by</span>
+                                    <span className="text-white text-2xl font-bold tracking-tight">
+                                        L-Expert-Comptable<span className="text-[#73EDE0]">.com</span>
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <button onClick={fetchData} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition">
-                                    <span>🔄</span> Rafraîchir
+
+                            {/* Partie Droite : Boutons (inchangée) */}
+                            <div className="flex items-center gap-4 bg-gray-800/50 p-2 rounded-xl border border-gray-700">
+                                <button
+                                    onClick={fetchData}
+                                    className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition border border-gray-600 shadow-sm"
+                                >
+                                    <span>🔄</span> <span className="hidden sm:inline">Rafraîchir</span>
                                 </button>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="w-4 h-4" />
-                                    Auto-refresh (60s)
+                                <label className="flex items-center gap-2 text-sm pr-2 cursor-pointer select-none">
+                                    <div className="relative">
+                                        <input
+                                            type="checkbox"
+                                            checked={autoRefresh}
+                                            onChange={(e) => setAutoRefresh(e.target.checked)}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#73EDE0]"></div>
+                                    </div>
+                                    <span className="text-gray-300">Auto-refresh</span>
                                 </label>
                             </div>
                         </div>
@@ -307,10 +336,10 @@
                                             placeholder="expert comptable startup" />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">URL cible *</label>
-                                        <input type="url" required value={formData.url} onChange={(e) => setFormData({...formData, url: e.target.value})}
+                                        <label className="block text-sm font-medium mb-2">URL cible</label>
+                                        <input type="url" value={formData.url} onChange={(e) => setFormData({...formData, url: e.target.value})}
                                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-400"
-                                            placeholder="https://..." />
+                                            placeholder="https://... (optionnel)" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-2">Volume</label>
@@ -437,11 +466,20 @@
                     className="bg-gray-700 rounded-lg p-4 cursor-move hover:bg-gray-600 transition"
                     style={{ cursor: 'grab' }}
                 >
-                    <h4 className="font-semibold text-white mb-2 truncate">{keyword.mot_cle}</h4>
-                    <div className="space-y-1 text-sm text-gray-300">
-                        <div className="flex justify-between"><span>📊 Volume:</span><span className="font-medium">{keyword.volume || 'N/A'}</span></div>
-                        <div className="flex justify-between"><span>💰 Business:</span><span className="font-medium">{keyword.indice_business || 'N/A'}</span></div>
-                        <div className="flex justify-between"><span>📍 Position:</span><span className="font-medium">{keyword.position_actuelle || 'N/A'}</span></div>
+                    <h4 className="font-semibold text-white mb-3 truncate">{keyword.mot_cle}</h4>
+                    <div className="space-y-2 text-sm text-gray-300">
+                        <div className="flex justify-between">
+                            <span className="flex items-center gap-1">👆 Clics:</span>
+                            <span className="font-medium text-cyan-400">{keyword.clics_16m || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="flex items-center gap-1">👁️ Impressions:</span>
+                            <span className="font-medium text-cyan-400">{keyword.impressions_16m || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="flex items-center gap-1">📍 Position:</span>
+                            <span className="font-medium text-cyan-400">{keyword.position_actuelle || 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
             );
@@ -450,35 +488,131 @@
         function DetailModal({ keyword, onClose }) {
             let top10 = [];
             try { top10 = keyword.top10_serp ? JSON.parse(keyword.top10_serp) : []; } catch(e) { top10 = []; }
-            const actions = keyword.actions_suggerees ? keyword.actions_suggerees.split('\n').filter(a => a.trim()) : [];
 
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop" onClick={onClose}>
-                    <div className="bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 flex justify-between">
-                            <h2 className="text-2xl font-bold text-white">{keyword.mot_cle}</h2>
-                            <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl">×</button>
-                        </div>
-                        <div className="p-6 space-y-6">
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <MetricCard icon="📊" label="Volume" value={keyword.volume} />
-                                <MetricCard icon="💰" label="Indice Business" value={keyword.indice_business} />
-                                <MetricCard icon="📍" label="Position" value={keyword.position_actuelle} />
+                    <div className="bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 flex justify-between items-start">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white mb-2">{keyword.mot_cle}</h2>
+                                {keyword.url && (
+                                    <a href={keyword.url} target="_blank" className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-1">
+                                        🔗 {keyword.url}
+                                    </a>
+                                )}
                             </div>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white text-4xl leading-none">×</button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {/* Section 1 : Métriques de performance */}
+                            <div className="bg-gray-700 rounded-xl p-6">
+                                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                    <span>📊</span> Performances actuelles
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <MetricCard icon="👆" label="Clics (16m)" value={keyword.clics_16m} />
+                                    <MetricCard icon="👁️" label="Impressions (16m)" value={keyword.impressions_16m} />
+                                    <MetricCard icon="📍" label="Position" value={keyword.position_actuelle} />
+                                    <MetricCard icon="📈" label="Évolution" value={keyword.delta_positions} />
+                                    <MetricCard icon="🎯" label="CTR" value={keyword.ctr} />
+                                    <MetricCard icon="📊" label="Volume" value={keyword.volume} />
+                                    <MetricCard icon="💰" label="Indice Business" value={keyword.indice_business} />
+                                    <MetricCard icon="🔄" label="Dernière MAJ" value={keyword.derniere_maj || 'N/A'} small />
+                                </div>
+                            </div>
+
+                            {/* Section 2 : Analyse concurrentielle */}
+                            <div className="bg-gray-700 rounded-xl p-6">
+                                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                    <span>⚔️</span> Analyse concurrentielle
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    <MetricCard icon="🏢" label="Concurrents" value={keyword.nb_concurrents} />
+                                    <MetricCard icon="🏛️" label="Sites Gouv" value={keyword.nb_sites_gouv} />
+                                    <MetricCard icon="📰" label="Médias" value={keyword.nb_medias} />
+                                </div>
+                            </div>
+
+                            {/* Section 3 : Analyse SEO */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-gray-700 rounded-xl p-6">
+                                    <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                                        <span>🎯</span> Statut URL
+                                    </h3>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-300">URL trouvée:</span>
+                                            <span className={`font-semibold ${keyword.url_trouvee ? 'text-green-400' : 'text-red-400'}`}>
+                                                {keyword.url_trouvee || 'Non'}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-300">URL match:</span>
+                                            <span className={`font-semibold ${keyword.url_match ? 'text-green-400' : 'text-red-400'}`}>
+                                                {keyword.url_match ? '✅ Oui' : '❌ Non'}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-300">Flag juridique:</span>
+                                            <span className={`font-semibold ${keyword.flag_juridique ? 'text-yellow-400' : 'text-gray-400'}`}>
+                                                {keyword.flag_juridique ? '⚠️ Oui' : 'Non'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-700 rounded-xl p-6">
+                                    <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                                        <span>🎨</span> Priorité
+                                    </h3>
+                                    <div className="flex items-center gap-3">
+                                        <span className={`px-6 py-3 rounded-lg text-white font-bold text-lg ${
+                                            keyword.priorite === 'HAUTE' ? 'bg-red-500' :
+                                            keyword.priorite === 'MOYENNE' ? 'bg-orange-500' :
+                                            keyword.priorite === 'FAIBLE' ? 'bg-yellow-500' :
+                                            'bg-gray-500'
+                                        }`}>
+                                            {keyword.priorite}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section 4 : Justification IA */}
                             {keyword.justification && (
-                                <div className="bg-gray-700 rounded-xl p-4">
-                                    <h3 className="font-semibold mb-2">💡 Justification</h3>
-                                    <p className="text-gray-300 text-sm">{keyword.justification}</p>
+                                <div className="bg-gray-700 rounded-xl p-6">
+                                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                        <span>💡</span> Analyse & Justification
+                                    </h3>
+                                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{keyword.justification}</p>
                                 </div>
                             )}
+
+                            {/* Section 5 : Actions suggérées */}
+                            {keyword.actions_suggerees && (
+                                <div className="bg-gray-700 rounded-xl p-6">
+                                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                        <span>🚀</span> Actions suggérées
+                                    </h3>
+                                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{keyword.actions_suggerees}</p>
+                                </div>
+                            )}
+
+                            {/* Section 6 : TOP 10 SERP */}
                             {top10.length > 0 && (
-                                <div className="bg-gray-700 rounded-xl p-4">
-                                    <h3 className="font-semibold mb-3">🔝 TOP 10 SERP</h3>
+                                <div className="bg-gray-700 rounded-xl p-6">
+                                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                        <span>🔝</span> TOP 10 SERP
+                                    </h3>
                                     <div className="space-y-2">
                                         {top10.map((item, i) => (
-                                            <div key={i} className="flex gap-3 text-sm bg-gray-600 p-2 rounded">
-                                                <span className="font-bold text-cyan-400">#{i + 1}</span>
-                                                <a href={item.url} target="_blank" className="text-gray-300 hover:text-white truncate flex-1">{item.title || item.url}</a>
+                                            <div key={i} className="flex gap-3 items-center bg-gray-600 p-3 rounded-lg hover:bg-gray-500 transition">
+                                                <span className="font-bold text-cyan-400 text-lg min-w-[40px]">#{i + 1}</span>
+                                                <a href={item.url} target="_blank" className="text-gray-200 hover:text-white truncate flex-1 text-sm">
+                                                    {item.title || item.url}
+                                                </a>
                                             </div>
                                         ))}
                                     </div>
@@ -490,12 +624,12 @@
             );
         }
 
-        function MetricCard({ icon, label, value }) {
+        function MetricCard({ icon, label, value, small }) {
             return (
-                <div className="bg-gray-700 rounded-lg p-4">
-                    <div className="text-2xl mb-1">{icon}</div>
-                    <div className="text-xs text-gray-400 mb-1">{label}</div>
-                    <div className="text-xl font-bold">{value || 'N/A'}</div>
+                <div className="bg-gray-600 rounded-lg p-4">
+                    <div className="text-2xl mb-2">{icon}</div>
+                    <div className={`${small ? 'text-xs' : 'text-xs'} text-gray-300 mb-1`}>{label}</div>
+                    <div className={`${small ? 'text-sm' : 'text-xl'} font-bold text-white`}>{value || 'N/A'}</div>
                 </div>
             );
         }
