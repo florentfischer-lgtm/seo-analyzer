@@ -59,29 +59,38 @@
             });
 
             // --- FONCTION DE CHARGEMENT CORRIGÉE ---
+           // Charger les données (Version Blindée)
             const fetchData = async () => {
                 try {
                     const response = await fetch(API_CONFIG.GET_DATA);
                     const result = await response.json();
                     
-                    // CAS 1 : n8n renvoie directement un tableau (votre cas actuel)
+                    let keywords = [];
+
+                    // CAS 1 : n8n renvoie directement la liste (tableau)
                     if (Array.isArray(result)) {
-                        // On calcule les stats nous-mêmes
-                        const stats = {
-                            haute: result.filter(k => k.priorite === 'HAUTE').length,
-                            moyenne: result.filter(k => k.priorite === 'MOYENNE').length,
-                            faible: result.filter(k => k.priorite === 'FAIBLE').length,
-                            impossible: result.filter(k => k.priorite === 'IMPOSSIBLE').length
-                        };
-                        setData({ success: true, stats: stats, mots_cles: result });
+                        keywords = result;
                     } 
-                    // CAS 2 : n8n renvoie un objet propre { success: true ... }
-                    else if (result.success || result.mots_cles) {
-                        setData(result);
+                    // CAS 2 : n8n renvoie un objet avec une clé "data" ou "mots_cles"
+                    else if (result.mots_cles) {
+                        keywords = result.mots_cles;
+                    } else if (result.data) {
+                        keywords = result.data;
                     }
+
+                    // Calcul des stats en direct
+                    const stats = {
+                        haute: keywords.filter(k => k.priorite === 'HAUTE').length,
+                        moyenne: keywords.filter(k => k.priorite === 'MOYENNE').length,
+                        faible: keywords.filter(k => k.priorite === 'FAIBLE').length,
+                        impossible: keywords.filter(k => k.priorite === 'IMPOSSIBLE').length
+                    };
+
+                    setData({ stats: stats, mots_cles: keywords });
+
                 } catch (error) {
                     console.error('Erreur lors du chargement:', error);
-                    showNotification('Erreur de chargement (vérifiez la console)', 'error');
+                    showNotification('Erreur de lecture des données', 'error');
                 } finally {
                     setLoading(false);
                 }
