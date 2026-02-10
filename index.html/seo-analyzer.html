@@ -58,57 +58,66 @@
                 mot_cle: '', url: '', volume: '', indice_business: ''
             });
 
-            // Charger les données (Version Finale - Mapping Direct)
+           // Charger les données (Version "Force Brute" - Détection automatique des colonnes)
             const fetchData = async () => {
                 try {
                     const response = await fetch(API_CONFIG.GET_DATA);
                     const result = await response.json();
                     
                     let rawData = [];
-                    // Détection du format (Liste ou Objet)
+                    // On gère tous les formats possibles renvoyés par n8n
                     if (Array.isArray(result)) rawData = result;
                     else if (result.mots_cles) rawData = result.mots_cles;
                     else if (result.data) rawData = result.data;
 
-                    // Outil de diagnostic : Regardez la console (F12) pour voir ce qui arrive vraiment
-                    console.log("Données reçues de n8n (Brut) :", rawData); 
+                    console.log("Données brutes reçues:", rawData);
 
-                    // Transformation des données
                     const keywords = rawData
-                        // 1. On garde seulement les lignes qui ont un vrai mot-clé (évite les lignes vides)
-                        .filter(item => item.mot_cle && item.mot_cle.toString().trim() !== "")
-                        // 2. On map les colonnes EXACTES de votre Google Sheet (Image 2)
-                        .map(item => ({
-                            mot_cle: item.mot_cle,
-                            url: item.url,
-                            // On s'assure que ce sont des nombres ou 0
-                            volume: item.volume || 0,
-                            indice_business: item.indice_business || 0,
-                            // On force la priorité en majuscule pour que les couleurs marchent
-                            priorite: (item.priorite || 'INCONNUE').toUpperCase(),
-                            position_actuelle: item.position_actuelle || 'N/A',
-                            nb_concurrents: item.nb_concurrents || 0,
-                            justification: item.justification || '',
-                            // Gestion des champs JSON complexes
-                            top10_serp: typeof item.top10_serp === 'string' ? item.top10_serp : JSON.stringify(item.top10_serp || []),
-                            actions_suggerees: item.actions_suggerees || ''
-                        }));
+                        // Étape 1 : On garde tout ce qui n'est pas vide
+                        .filter(item => {
+                            // On vérifie s'il y a au moins une valeur non vide dans la ligne
+                            return Object.values(item).some(val => val && val.toString().trim() !== "");
+                        })
+                        .map(item => {
+                            const keys = Object.keys(item);
+                            
+                            // Étape 2 : Détective des colonnes
+                            // On cherche une colonne qui contient "mot" ou "key". Sinon on prend la 2ème colonne (index 1) ou la 1ère.
+                            const keyMot = keys.find(k => k.toLowerCase().includes('mot') || k.toLowerCase().includes('key')) || keys[1] || keys[0];
+                            const keyPriorite = keys.find(k => k.toLowerCase().includes('prio')) || 'priorite';
+                            const keyVolume = keys.find(k => k.toLowerCase().includes('vol')) || 'volume';
+                            const keyBusiness = keys.find(k => k.toLowerCase().includes('bus') || k.toLowerCase().includes('ind')) || 'indice_business';
 
-                    console.log("Données traitées pour l'affichage :", keywords);
+                            return {
+                                mot_cle: item[keyMot] || "Mot-clé inconnu",
+                                url: item.url || item['url'] || '',
+                                volume: item[keyVolume] || 0,
+                                indice_business: item[keyBusiness] || 0,
+                                // On force la majuscule pour que les couleurs (HAUTE, FAIBLE) fonctionnent
+                                priorite: (item[keyPriorite] || 'MOYENNE').toString().toUpperCase(),
+                                position_actuelle: item.position_actuelle || 'N/A',
+                                nb_concurrents: item.nb_concurrents || 0,
+                                justification: item.justification || '',
+                                top10_serp: [],
+                                actions_suggerees: ''
+                            };
+                        });
 
-                    // Calcul des stats
+                    console.log("Données prêtes à afficher :", keywords);
+
+                    // Calcul des stats pour les compteurs en haut
                     const stats = {
-                        haute: keywords.filter(k => k.priorite === 'HAUTE').length,
-                        moyenne: keywords.filter(k => k.priorite === 'MOYENNE').length,
-                        faible: keywords.filter(k => k.priorite === 'FAIBLE').length,
-                        impossible: keywords.filter(k => k.priorite === 'IMPOSSIBLE').length
+                        haute: keywords.filter(k => k.priorite.includes('HAUTE')).length,
+                        moyenne: keywords.filter(k => k.priorite.includes('MOYENNE')).length,
+                        faible: keywords.filter(k => k.priorite.includes('FAIBLE')).length,
+                        impossible: keywords.filter(k => k.priorite.includes('IMPOSSIBLE')).length
                     };
 
                     setData({ stats: stats, mots_cles: keywords });
 
                 } catch (error) {
-                    console.error('Erreur lors du chargement:', error);
-                    showNotification('Erreur de lecture des données', 'error');
+                    console.error('Erreur:', error);
+                    showNotification('Erreur de lecture', 'error');
                 } finally {
                     setLoading(false);
                 }
