@@ -94,29 +94,38 @@
                             if (motCle === '' || motCle.toLowerCase() === 'mot_cle') return false;
                             return true;
                         })
-                        .map((item, index) => ({
-                            id: `${item.mot_cle}-${index}`,
-                            mot_cle: item.mot_cle || `Mot-clé ${index + 1}`,
-                            url: item.url || '',
-                            volume: parseInt(item.volume) || 0,
-                            indice_business: parseInt(item.indice_business) || 0,
-                            priorite: normalizePriority(item.priorite),
-                            position_actuelle: item.position_actuelle || 'N/A',
-                            delta_positions: item.delta_positions || 'N/A',
-                            clics_16m: parseInt(item.clics_16m) || 0,
-                            impressions_16m: parseInt(item.impressions_16m) || 0,
-                            ctr: item.ctr || 'N/A',
-                            nb_concurrents: parseInt(item.nb_concurrents) || 0,
-                            nb_sites_gouv: parseInt(item.nb_sites_gouv) || 0,
-                            nb_medias: parseInt(item.nb_medias) || 0,
-                            justification: item.justification || '',
-                            actions_suggerees: item.actions_suggerees || '',
-                            top10_serp: item.top10_serp || '[]',
-                            url_trouvee: item.url_trouvee || '',
-                            url_match: item.url_match || false,
-                            flag_juridique: item.flag_juridique || false,
-                            derniere_maj: item.derniere_maj || ''
-                        }));
+                        .map((item, index) => {
+                            // Log pour debug
+                            if (index === 0) {
+                                console.log("Colonnes disponibles:", Object.keys(item));
+                                console.log("Exemple clics_16m:", item.clics_16m, "Type:", typeof item.clics_16m);
+                                console.log("Exemple impressions_16m:", item.impressions_16m, "Type:", typeof item.impressions_16m);
+                            }
+                            
+                            return {
+                                id: `${item.mot_cle}-${index}`,
+                                mot_cle: item.mot_cle || `Mot-clé ${index + 1}`,
+                                url: item.url || '',
+                                volume: parseInt(item.volume) || 0,
+                                indice_business: parseInt(item.indice_business) || 0,
+                                priorite: normalizePriority(item.priorite),
+                                position_actuelle: item.position_actuelle || 'N/A',
+                                delta_positions: item.delta_positions || 'N/A',
+                                clics_16m: parseInt(item.clics_16m) || 0,
+                                impressions_16m: parseInt(item.impressions_16m) || 0,
+                                ctr: item.ctr || 'N/A',
+                                nb_concurrents: parseInt(item.nb_concurrents) || 0,
+                                nb_sites_gouv: parseInt(item.nb_sites_gouv) || 0,
+                                nb_medias: parseInt(item.nb_medias) || 0,
+                                justification: item.justification || '',
+                                actions_suggerees: item.actions_suggerees || '',
+                                top10_serp: item.top10_serp || '[]',
+                                url_trouvee: item.url_trouvee || '',
+                                url_match: item.url_match || false,
+                                flag_juridique: item.flag_juridique || false,
+                                derniere_maj: item.derniere_maj || ''
+                            };
+                        });
 
                     const stats = {
                         haute: keywords.filter(k => k.priorite === 'HAUTE').length,
@@ -176,32 +185,43 @@
             const handleDragStart = (e, keyword) => {
                 setDraggedItem(keyword);
                 e.dataTransfer.effectAllowed = 'move';
-                e.currentTarget.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', keyword.mot_cle);
             };
 
             const handleDragEnd = (e) => {
-                e.currentTarget.classList.remove('dragging');
                 setDraggedItem(null);
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
             };
 
             const handleDragOver = (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 e.dataTransfer.dropEffect = 'move';
             };
 
             const handleDragEnter = (e) => {
-                e.currentTarget.classList.add('drag-over');
+                e.preventDefault();
+                if (e.currentTarget.classList.contains('kanban-column')) {
+                    e.currentTarget.classList.add('drag-over');
+                }
             };
 
             const handleDragLeave = (e) => {
-                e.currentTarget.classList.remove('drag-over');
+                if (e.currentTarget.classList.contains('kanban-column')) {
+                    e.currentTarget.classList.remove('drag-over');
+                }
             };
 
             const handleDrop = (e, targetPriority) => {
                 e.preventDefault();
-                e.currentTarget.classList.remove('drag-over');
+                e.stopPropagation();
+                
+                if (e.currentTarget.classList.contains('kanban-column')) {
+                    e.currentTarget.classList.remove('drag-over');
+                }
                 
                 if (draggedItem && draggedItem.priorite !== targetPriority) {
+                    console.log(`Déplacement: ${draggedItem.mot_cle} → ${targetPriority}`);
                     updatePriority(draggedItem.mot_cle, targetPriority);
                 }
             };
@@ -499,18 +519,28 @@
             const parseTop10 = (text) => {
                 if (!text || text.trim() === '' || text === '[]') return [];
                 
-                // Format: "#1 domain.com - Title"
+                // Format: "#1 domain.com - Title" ou "#1 domain.com ❌ - Title"
                 const lines = text.split('\n').filter(line => line.trim());
                 const results = [];
                 
                 for (let line of lines) {
-                    const match = line.match(/^#(\d+)\s+([^\s]+)\s+-\s+(.+)$/);
+                    // Extraire emoji s'il existe
+                    const emojiMatch = line.match(/([❌🏛️📰])/);
+                    const emoji = emojiMatch ? emojiMatch[1] : null;
+                    
+                    // Regex plus flexible pour capturer emojis et autres caractères
+                    const match = line.match(/^#(\d+)\s+(\S+).*?-\s+(.+)$/);
                     if (match) {
                         const [, position, domain, title] = match;
+                        const isOwnSite = domain.includes('expert-comptable.com') || domain.includes('l-expert-comptable');
+                        
                         results.push({
                             position: parseInt(position),
                             url: domain.startsWith('http') ? domain : `https://${domain}`,
-                            title: title.trim()
+                            domain: domain,
+                            title: title.trim(),
+                            emoji: emoji,
+                            isOwnSite: isOwnSite
                         });
                     }
                 }
@@ -643,21 +673,61 @@
                                         <span>🔝</span> TOP 10 SERP
                                     </h3>
                                     <div className="space-y-2">
-                                        {top10.map((item, i) => (
-                                            <div key={i} className="flex gap-3 items-start bg-gray-600 p-3 rounded-lg hover:bg-gray-500 transition">
-                                                <span className="font-bold text-cyan-400 text-lg min-w-[40px] flex-shrink-0">
-                                                    #{item.position || i + 1}
-                                                </span>
-                                                <div className="flex-1 min-w-0">
-                                                    <a href={item.url} target="_blank" className="text-cyan-300 hover:text-cyan-100 text-xs block mb-1 break-all">
-                                                        {item.url}
-                                                    </a>
-                                                    {item.title && (
-                                                        <p className="text-gray-200 text-sm leading-snug">{item.title}</p>
-                                                    )}
+                                        {top10.map((item, i) => {
+                                            // Déterminer la couleur selon l'emoji
+                                            let borderColor = 'border-gray-500';
+                                            let bgColor = 'bg-gray-600';
+                                            let label = '';
+                                            
+                                            if (item.isOwnSite) {
+                                                borderColor = 'border-cyan-400';
+                                                bgColor = 'bg-cyan-900/30';
+                                                label = '✨ Notre site';
+                                            } else if (item.emoji === '❌') {
+                                                borderColor = 'border-red-500';
+                                                bgColor = 'bg-red-900/20';
+                                                label = '❌ Concurrent direct';
+                                            } else if (item.emoji === '🏛️') {
+                                                borderColor = 'border-blue-500';
+                                                bgColor = 'bg-blue-900/20';
+                                                label = '🏛️ Site gouv';
+                                            } else if (item.emoji === '📰') {
+                                                borderColor = 'border-purple-500';
+                                                bgColor = 'bg-purple-900/20';
+                                                label = '📰 Média';
+                                            }
+                                            
+                                            return (
+                                                <div key={i} className={`flex gap-3 items-start ${bgColor} border-l-4 ${borderColor} p-3 rounded-lg hover:bg-gray-500/50 transition`}>
+                                                    <span className={`font-bold text-lg min-w-[40px] flex-shrink-0 ${item.isOwnSite ? 'text-cyan-400' : 'text-cyan-400'}`}>
+                                                        #{item.position || i + 1}
+                                                    </span>
+                                                    <div className="flex-1 min-w-0">
+                                                        {label && (
+                                                            <div className={`text-xs font-semibold mb-1 ${
+                                                                item.isOwnSite ? 'text-cyan-300' :
+                                                                item.emoji === '❌' ? 'text-red-300' :
+                                                                item.emoji === '🏛️' ? 'text-blue-300' :
+                                                                item.emoji === '📰' ? 'text-purple-300' :
+                                                                'text-gray-400'
+                                                            }`}>
+                                                                {label}
+                                                            </div>
+                                                        )}
+                                                        <a href={item.url} target="_blank" className={`text-xs block mb-1 break-all ${
+                                                            item.isOwnSite ? 'text-cyan-200 hover:text-cyan-100 font-semibold' : 'text-cyan-300 hover:text-cyan-100'
+                                                        }`}>
+                                                            {item.domain}
+                                                        </a>
+                                                        {item.title && (
+                                                            <p className={`text-sm leading-snug ${item.isOwnSite ? 'text-white font-medium' : 'text-gray-200'}`}>
+                                                                {item.title}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
