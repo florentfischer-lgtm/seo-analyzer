@@ -185,17 +185,27 @@
 
             return (
                 <div className="min-h-screen p-6">
-                    {/* Header */}
+                 {/* Header Modifié */}
                     <header className="mb-8">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <img src="./download-removebg-preview.png" alt="L-Expert-Comptable.com" class="h-12 w-auto"/>
-                                
-                                <div>
-                                    <h1 className="text-3xl font-bold text-white">Content Factory</h1>
-                                    <p className="text-gray-400 text-sm">Analyse automatisée avec IA</p>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            
+                            {/* Partie Gauche : Titre + Content Factory */}
+                            <div>
+                                <h1 className="text-3xl font-bold text-white mb-2">SEO Keyword Analyzer</h1>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-400 text-sm font-medium">Content factory by</span>
+                                    {/* Fond blanc ajouté pour que le logo officiel (foncé) soit visible */}
+                                    <div className="bg-white px-2 py-1 rounded h-8 flex items-center">
+                                        <img 
+                                            src="https://www.l-expert-comptable.com/sites/default/files/logo_lec.svg" 
+                                            alt="L-Expert-Comptable.com" 
+                                            className="h-full w-auto"
+                                        />
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* Partie Droite : Boutons (inchangée) */}
                             <div className="flex items-center gap-4">
                                 <button
                                     onClick={fetchData}
