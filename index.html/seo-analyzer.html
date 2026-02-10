@@ -12,7 +12,6 @@
             font-family: 'Inter', sans-serif;
         }
         
-        
         .gradient-bg {
             background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
         }
@@ -190,11 +189,8 @@
                     <header className="mb-8">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <img 
-                                    src="data:image/png;base64,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" 
-                                    alt="L-Expert-Comptable.com" 
-                                    className="h-12"
-                                />
+                                <img src="https://www.l-expert-comptable.com/sites/default/files/logo_lec.svg" alt="L-Expert-Comptable.com" class="h-12 w-auto"/>
+                                
                                 <div>
                                     <h1 className="text-3xl font-bold text-white">SEO Keyword Analyzer</h1>
                                     <p className="text-gray-400 text-sm">Analyse automatisée avec IA</p>
